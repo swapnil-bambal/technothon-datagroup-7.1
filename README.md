@@ -1,2 +1,7 @@
-# technothon-group-7.1
-Repo to manage the code for group 7.1
+# Prelegal
+
+A platform for drafting common legal agreements.
+
+## Status
+
+🚧 **In progress** — this project is currently under active development and is expected to be completed in 1 week.
