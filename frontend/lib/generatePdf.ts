@@ -1,17 +1,17 @@
+import type { jsPDF } from "jspdf";
 import type { NdaDocument } from "./buildNdaDocument";
 
-// Generates a clean, text-based PDF of the completed NDA using jsPDF. jsPDF is
-// imported dynamically so it only loads in the browser (it touches `window`).
+// Renders the completed NDA into a jsPDF document and triggers a download.
+//
+// The layout (`renderNdaToPdf`) is split from the download (`generateNdaPdf`)
+// so the page-building logic can be unit-tested in Node by passing in a jsPDF
+// instance, while the app keeps loading jsPDF lazily in the browser (it touches
+// `window`, so it must not run on the server).
 
 type FontStyle = "normal" | "bold" | "italic";
 
-export async function generateNdaPdf(
-  document: NdaDocument,
-  fileBaseName: string,
-): Promise<void> {
-  const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-
+/** Lay the NDA out onto an existing jsPDF instance (a4, millimetre units). */
+export function renderNdaToPdf(pdf: jsPDF, document: NdaDocument): void {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 18;
@@ -42,10 +42,8 @@ export async function generateNdaPdf(
     const indent = opts.indent ?? 0;
     pdf.setFont("times", style);
     pdf.setFontSize(size);
-    const lines = pdf.splitTextToSize(
-      content,
-      contentWidth - indent,
-    ) as string[];
+    const split = pdf.splitTextToSize(content, contentWidth - indent);
+    const lines: string[] = Array.isArray(split) ? split : [split];
     const lh = lineHeight(size);
     for (const line of lines) {
       ensureSpace(lh);
@@ -59,7 +57,12 @@ export async function generateNdaPdf(
   }
 
   function gap(mm = 3) {
-    y += mm;
+    if (y + mm > pageHeight - margin) {
+      pdf.addPage();
+      y = margin;
+    } else {
+      y += mm;
+    }
   }
 
   // --- Title + intro -------------------------------------------------------
@@ -128,13 +131,22 @@ export async function generateNdaPdf(
     pdf.setPage(page);
     pdf.setFont("times", "normal");
     pdf.setFontSize(8);
-    pdf.text(
-      `Page ${page} of ${totalPages}`,
-      pageWidth / 2,
-      pageHeight - 8,
-      { align: "center" },
-    );
+    pdf.text(`Page ${page} of ${totalPages}`, pageWidth / 2, pageHeight - 8, {
+      align: "center",
+    });
   }
+}
 
+/**
+ * Generate a clean, text-based PDF of the completed NDA and download it. jsPDF
+ * is imported dynamically so it only loads in the browser.
+ */
+export async function generateNdaPdf(
+  document: NdaDocument,
+  fileBaseName: string,
+): Promise<void> {
+  const { jsPDF: JsPDF } = await import("jspdf");
+  const pdf = new JsPDF({ unit: "mm", format: "a4" });
+  renderNdaToPdf(pdf, document);
   pdf.save(`${fileBaseName}.pdf`);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { NdaData, PartyInfo } from "@/lib/ndaTypes";
 
 interface NdaFormProps {
@@ -10,28 +11,36 @@ interface NdaFormProps {
 const inputClass =
   "mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500";
 const labelClass = "block text-sm font-medium text-slate-700";
+const numberInputClass =
+  "w-16 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100";
 
 function Field({
+  id,
   label,
   children,
 }: {
+  id: string;
   label: string;
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className={labelClass}>{label}</span>
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
       {children}
-    </label>
+    </div>
   );
 }
 
 function PartyFields({
   title,
+  idPrefix,
   party,
   onChange,
 }: {
   title: string;
+  idPrefix: string;
   party: PartyInfo;
   onChange: (next: PartyInfo) => void;
 }) {
@@ -39,8 +48,9 @@ function PartyFields({
   return (
     <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      <Field label="Company">
+      <Field id={`${idPrefix}-company`} label="Company">
         <input
+          id={`${idPrefix}-company`}
           className={inputClass}
           type="text"
           value={party.company}
@@ -48,8 +58,9 @@ function PartyFields({
           onChange={(e) => set({ company: e.target.value })}
         />
       </Field>
-      <Field label="Signatory name">
+      <Field id={`${idPrefix}-name`} label="Signatory name">
         <input
+          id={`${idPrefix}-name`}
           className={inputClass}
           type="text"
           value={party.signatoryName}
@@ -57,8 +68,9 @@ function PartyFields({
           onChange={(e) => set({ signatoryName: e.target.value })}
         />
       </Field>
-      <Field label="Title">
+      <Field id={`${idPrefix}-title`} label="Title">
         <input
+          id={`${idPrefix}-title`}
           className={inputClass}
           type="text"
           value={party.title}
@@ -66,8 +78,9 @@ function PartyFields({
           onChange={(e) => set({ title: e.target.value })}
         />
       </Field>
-      <Field label="Notice address (email or postal)">
+      <Field id={`${idPrefix}-notice`} label="Notice address (email or postal)">
         <input
+          id={`${idPrefix}-notice`}
           className={inputClass}
           type="text"
           value={party.noticeAddress}
@@ -76,6 +89,89 @@ function PartyFields({
         />
       </Field>
     </div>
+  );
+}
+
+/**
+ * A "choose N years, or a fixed alternative" control, used by both the MNDA
+ * Term and the Term of Confidentiality. The year input keeps its own raw
+ * string state so the field can be cleared and retyped freely; it commits a
+ * clamped value on valid input and normalizes on blur.
+ */
+function TermYearsField({
+  legend,
+  name,
+  yearsId,
+  isYears,
+  years,
+  yearsLeadingText,
+  alternativeLabel,
+  onSelectYears,
+  onSelectAlternative,
+  onYearsChange,
+}: {
+  legend: string;
+  name: string;
+  yearsId: string;
+  isYears: boolean;
+  years: number;
+  yearsLeadingText: string;
+  alternativeLabel: string;
+  onSelectYears: () => void;
+  onSelectAlternative: () => void;
+  onYearsChange: (years: number) => void;
+}) {
+  const [raw, setRaw] = useState(String(years));
+  return (
+    <fieldset className="space-y-2">
+      <legend className={labelClass}>{legend}</legend>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="radio"
+            name={name}
+            checked={isYears}
+            onChange={onSelectYears}
+          />
+          {yearsLeadingText}
+        </label>
+        <span className="inline-flex items-center gap-2">
+          <label htmlFor={yearsId} className="sr-only">
+            {legend}: number of years
+          </label>
+          <input
+            id={yearsId}
+            className={numberInputClass}
+            type="number"
+            min={1}
+            value={raw}
+            disabled={!isYears}
+            onChange={(e) => {
+              setRaw(e.target.value);
+              const n = Number(e.target.value);
+              if (e.target.value !== "" && Number.isInteger(n) && n >= 1) {
+                onYearsChange(n);
+              }
+            }}
+            onBlur={() => {
+              const n = Math.max(1, Math.floor(Number(raw) || 1));
+              setRaw(String(n));
+              onYearsChange(n);
+            }}
+          />
+          year(s) from the Effective Date
+        </span>
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="radio"
+            name={name}
+            checked={!isYears}
+            onChange={onSelectAlternative}
+          />
+          {alternativeLabel}
+        </label>
+      </div>
+    </fieldset>
   );
 }
 
@@ -95,11 +191,13 @@ export default function NdaForm({ value, onChange }: NdaFormProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           <PartyFields
             title="Party 1"
+            idPrefix="party1"
             party={value.party1}
             onChange={(party1) => set({ party1 })}
           />
           <PartyFields
             title="Party 2"
+            idPrefix="party2"
             party={value.party2}
             onChange={(party2) => set({ party2 })}
           />
@@ -110,8 +208,12 @@ export default function NdaForm({ value, onChange }: NdaFormProps) {
         <legend className="text-base font-semibold text-slate-900">
           Agreement Details
         </legend>
-        <Field label="Purpose (how Confidential Information may be used)">
+        <Field
+          id="purpose"
+          label="Purpose (how Confidential Information may be used)"
+        >
           <textarea
+            id="purpose"
             className={inputClass}
             rows={2}
             value={value.purpose}
@@ -119,16 +221,18 @@ export default function NdaForm({ value, onChange }: NdaFormProps) {
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Effective date">
+          <Field id="effective-date" label="Effective date">
             <input
+              id="effective-date"
               className={inputClass}
               type="date"
               value={value.effectiveDate}
               onChange={(e) => set({ effectiveDate: e.target.value })}
             />
           </Field>
-          <Field label="Governing law (state)">
+          <Field id="governing-law" label="Governing law (state)">
             <input
+              id="governing-law"
               className={inputClass}
               type="text"
               value={value.governingLawState}
@@ -137,8 +241,9 @@ export default function NdaForm({ value, onChange }: NdaFormProps) {
             />
           </Field>
         </div>
-        <Field label="Jurisdiction (where disputes are heard)">
+        <Field id="jurisdiction" label="Jurisdiction (where disputes are heard)">
           <input
+            id="jurisdiction"
             className={inputClass}
             type="text"
             value={value.jurisdiction}
@@ -150,88 +255,47 @@ export default function NdaForm({ value, onChange }: NdaFormProps) {
 
       <fieldset className="space-y-4">
         <legend className="text-base font-semibold text-slate-900">Term</legend>
-
-        <div className="space-y-2">
-          <span className={labelClass}>MNDA Term</span>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="mndaTermType"
-                checked={value.mndaTermType === "expires"}
-                onChange={() => set({ mndaTermType: "expires" })}
-              />
-              Expires
-              <input
-                className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-                type="number"
-                min={1}
-                value={value.mndaTermYears}
-                disabled={value.mndaTermType !== "expires"}
-                onChange={(e) =>
-                  set({ mndaTermYears: Math.max(1, Number(e.target.value) || 1) })
-                }
-              />
-              year(s) from the Effective Date
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="mndaTermType"
-                checked={value.mndaTermType === "untilTerminated"}
-                onChange={() => set({ mndaTermType: "untilTerminated" })}
-              />
-              Continues until terminated
-            </label>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <span className={labelClass}>Term of Confidentiality</span>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="confidentialityTermType"
-                checked={value.confidentialityTermType === "years"}
-                onChange={() => set({ confidentialityTermType: "years" })}
-              />
-              <input
-                className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100"
-                type="number"
-                min={1}
-                value={value.confidentialityTermYears}
-                disabled={value.confidentialityTermType !== "years"}
-                onChange={(e) =>
-                  set({
-                    confidentialityTermYears: Math.max(
-                      1,
-                      Number(e.target.value) || 1,
-                    ),
-                  })
-                }
-              />
-              year(s) from the Effective Date
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                name="confidentialityTermType"
-                checked={value.confidentialityTermType === "perpetuity"}
-                onChange={() => set({ confidentialityTermType: "perpetuity" })}
-              />
-              In perpetuity
-            </label>
-          </div>
-        </div>
+        <TermYearsField
+          legend="MNDA Term"
+          name="mndaTermType"
+          yearsId="mnda-term-years"
+          isYears={value.mndaTermType === "expires"}
+          years={value.mndaTermYears}
+          yearsLeadingText="Expires"
+          alternativeLabel="Continues until terminated"
+          onSelectYears={() => set({ mndaTermType: "expires" })}
+          onSelectAlternative={() => set({ mndaTermType: "untilTerminated" })}
+          onYearsChange={(mndaTermYears) => set({ mndaTermYears })}
+        />
+        <TermYearsField
+          legend="Term of Confidentiality"
+          name="confidentialityTermType"
+          yearsId="confidentiality-term-years"
+          isYears={value.confidentialityTermType === "years"}
+          years={value.confidentialityTermYears}
+          yearsLeadingText="For"
+          alternativeLabel="In perpetuity"
+          onSelectYears={() => set({ confidentialityTermType: "years" })}
+          onSelectAlternative={() =>
+            set({ confidentialityTermType: "perpetuity" })
+          }
+          onYearsChange={(confidentialityTermYears) =>
+            set({ confidentialityTermYears })
+          }
+        />
       </fieldset>
 
       <fieldset className="space-y-4">
         <legend className="text-base font-semibold text-slate-900">
-          Modifications <span className="font-normal text-slate-500">(optional)</span>
+          Modifications{" "}
+          <span className="font-normal text-slate-500">(optional)</span>
         </legend>
-        <Field label="List any modifications to the standard MNDA">
+        <Field
+          id="modifications"
+          label="List any modifications to the standard MNDA"
+        >
           <textarea
+            id="modifications"
             className={inputClass}
             rows={2}
             value={value.modifications}

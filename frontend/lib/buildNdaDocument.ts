@@ -1,4 +1,4 @@
-import type { NdaData } from "./ndaTypes";
+import type { NdaData, PartyInfo } from "./ndaTypes";
 
 // A renderer-agnostic representation of the completed Mutual NDA. Both the
 // on-screen preview (React) and the PDF generator (jsPDF) consume this single
@@ -83,6 +83,16 @@ export function confidentialityTermText(data: NdaData): string {
   )} from the Effective Date, but in the case of trade secrets, until the Confidential Information is no longer considered a trade secret under applicable laws.`;
 }
 
+function buildPartyBlock(label: string, party: PartyInfo): PartyBlock {
+  return {
+    label,
+    company: orPlaceholder(party.company, PLACEHOLDER.company),
+    signatoryName: orPlaceholder(party.signatoryName, PLACEHOLDER.name),
+    title: orPlaceholder(party.title, PLACEHOLDER.title),
+    noticeAddress: orPlaceholder(party.noticeAddress, PLACEHOLDER.notice),
+  };
+}
+
 /**
  * Build the completed Mutual NDA from the form data. The cover page reflects
  * every entered value; the Standard Terms reproduce the Common Paper Mutual NDA
@@ -114,20 +124,8 @@ export function buildNdaDocument(data: NdaData): NdaDocument {
   ];
 
   const parties: PartyBlock[] = [
-    {
-      label: "Party 1",
-      company: orPlaceholder(data.party1.company, PLACEHOLDER.company),
-      signatoryName: orPlaceholder(data.party1.signatoryName, PLACEHOLDER.name),
-      title: orPlaceholder(data.party1.title, PLACEHOLDER.title),
-      noticeAddress: orPlaceholder(data.party1.noticeAddress, PLACEHOLDER.notice),
-    },
-    {
-      label: "Party 2",
-      company: orPlaceholder(data.party2.company, PLACEHOLDER.company),
-      signatoryName: orPlaceholder(data.party2.signatoryName, PLACEHOLDER.name),
-      title: orPlaceholder(data.party2.title, PLACEHOLDER.title),
-      noticeAddress: orPlaceholder(data.party2.noticeAddress, PLACEHOLDER.notice),
-    },
+    buildPartyBlock("Party 1", data.party1),
+    buildPartyBlock("Party 2", data.party2),
   ];
 
   const sections: TermsSection[] = [

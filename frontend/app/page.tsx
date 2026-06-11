@@ -14,7 +14,8 @@ export default function Home() {
           <a
             href="https://commonpaper.com/standards/mutual-nda/1.0/"
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
+            aria-label="Common Paper Mutual NDA (opens in a new tab)"
             className="font-medium text-slate-900 underline"
           >
             Common Paper Mutual NDA

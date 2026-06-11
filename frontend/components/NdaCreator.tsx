@@ -10,8 +10,13 @@ import DownloadPdfButton from "./DownloadPdfButton";
 export default function NdaCreator() {
   const [data, setData] = useState<NdaData>(defaultNdaData);
 
-  const document = useMemo(() => buildNdaDocument(data), [data]);
-  const fileBaseName = useMemo(() => ndaFileBaseName(data), [data]);
+  const { ndaDocument, fileBaseName } = useMemo(
+    () => ({
+      ndaDocument: buildNdaDocument(data),
+      fileBaseName: ndaFileBaseName(data),
+    }),
+    [data],
+  );
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
@@ -25,9 +30,12 @@ export default function NdaCreator() {
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-slate-900">Preview</h2>
-          <DownloadPdfButton document={document} fileBaseName={fileBaseName} />
+          <DownloadPdfButton
+            ndaDocument={ndaDocument}
+            fileBaseName={fileBaseName}
+          />
         </div>
-        <NdaPreview document={document} />
+        <NdaPreview ndaDocument={ndaDocument} />
       </section>
     </div>
   );
